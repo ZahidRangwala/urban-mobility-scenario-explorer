@@ -53,3 +53,7 @@ logs/
 
 # Prefect
 .prefect/
+
+# Script generated files
+*.pid
+*.log

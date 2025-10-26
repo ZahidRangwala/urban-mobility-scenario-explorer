@@ -11,4 +11,9 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-CMD ["python", "src/pipeline.py"]
+
+# Expose Streamlit port
+EXPOSE 8501
+
+# Default command runs the dashboard
+CMD ["streamlit", "run", "dashboard/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
