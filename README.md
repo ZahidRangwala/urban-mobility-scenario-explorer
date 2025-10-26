@@ -22,19 +22,25 @@ cd urban-mobility-scenario-explorer
 ```
 
 The script will:
-- Detect if Docker is available and optionally use it
-- Create a virtual environment if needed
-- Install all dependencies
+- Use Docker Compose (recommended) if available for production-ready service management
+- Fall back to regular Docker or Python if needed
+- Create a virtual environment if running in Python mode
+- Install all dependencies automatically
 - Start the Streamlit dashboard on port 8501
-- Start the Prefect server on port 4200
 
 Then open your browser to:
 - **Dashboard**: http://localhost:8501
-- **Prefect UI**: http://localhost:4200
 
-To stop all services:
+**Available commands:**
 ```bash
-./stop.sh
+./start.sh    # Start all services
+./stop.sh     # Stop all services
+./restart.sh  # Restart all services
+
+# With Docker Compose (automatic):
+docker-compose logs -f    # View logs
+docker-compose restart    # Restart services
+docker-compose down       # Stop and remove containers
 ```
 
 ### Manual Setup
