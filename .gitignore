@@ -57,3 +57,6 @@ logs/
 # Script generated files
 *.pid
 *.log
+
+# Docker
+.docker/

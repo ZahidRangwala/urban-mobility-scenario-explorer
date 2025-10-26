@@ -13,13 +13,21 @@ NC='\033[0m' # No Color
 
 echo -e "${YELLOW}🛑 Stopping Urban Mobility Scenario Explorer Services...${NC}\n"
 
-# Check if Docker container is running
-if command -v docker >/dev/null 2>&1; then
-    if docker ps | grep -q urban-mobility-explorer; then
+# Check if Docker Compose is being used
+if command -v docker-compose >/dev/null 2>&1 && [ -f "docker-compose.yml" ]; then
+    echo -e "${YELLOW}Stopping Docker Compose services...${NC}"
+    docker-compose down
+    echo -e "${GREEN}✅ Docker Compose services stopped${NC}"
+elif command -v docker >/dev/null 2>&1; then
+    # Check if Docker container is running
+    if docker ps | grep -q urban-mobility-dashboard; then
         echo -e "${YELLOW}Stopping Docker container...${NC}"
-        docker stop urban-mobility-explorer
-        docker rm urban-mobility-explorer
-        echo -e "${GREEN}✅ Docker container stopped and removed${NC}"
+        docker stop urban-mobility-dashboard
+        echo -e "${GREEN}✅ Docker container stopped${NC}"
+    fi
+    # Remove stopped container if it exists
+    if docker ps -a | grep -q urban-mobility-dashboard; then
+        docker rm urban-mobility-dashboard 2>/dev/null || true
     fi
 fi
 

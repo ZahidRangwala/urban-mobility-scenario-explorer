@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: urban-mobility-dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+      - ./cache:/app/cache
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add Prefect server if needed
+  # prefect:
+  #   image: prefecthq/prefect:latest
+  #   container_name: urban-mobility-prefect
+  #   ports:
+  #     - "4200:4200"
+  #   restart: unless-stopped
+  #   command: ["prefect", "server", "start", "--host", "0.0.0.0"]
