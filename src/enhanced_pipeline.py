@@ -109,9 +109,10 @@ def store_in_bigquery(unified_df: pd.DataFrame,
     
     client = BigQueryClient(project_id=project_id)
     
-    # Create dataset and table
+    # Create dataset and tables
     client.create_dataset()
     client.create_segments_table()
+    client.create_od_matrices_table()
     
     # Upload data
     success = client.upload_dataframe(unified_df)
@@ -211,9 +212,11 @@ if __name__ == "__main__":
     # Run the enhanced pipeline
     result_df, paths = enhanced_main_flow(
         city="Chicago, Illinois",
-        use_bigquery=False  # Set to True if you have BigQuery credentials
+        use_bigquery=True,  # Enable BigQuery integration
+        project_id=os.getenv('GOOGLE_CLOUD_PROJECT')  # Use environment variable
     )
     
     print(f"\n🎉 Pipeline completed! Check the results in: {paths}")
+
 
 

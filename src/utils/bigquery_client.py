@@ -8,18 +8,55 @@ from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 from typing import Dict, List, Optional
 import os
+import json
 from datetime import datetime
 
 class BigQueryClient:
-    def __init__(self, project_id: str = None, dataset_id: str = "urban_mobility"):
+    def __init__(self, project_id: str = None, dataset_id: str = "urban_mobility", schema_file: str = None):
         self.project_id = project_id or os.getenv('GOOGLE_CLOUD_PROJECT')
         self.dataset_id = dataset_id
+        self.schema_file = schema_file or "src/utils/bigquery_schema.json"
         self.client = None
         
         if self.project_id:
             self.client = bigquery.Client(project=self.project_id)
         else:
             print("Warning: No Google Cloud project ID provided. BigQuery operations will be simulated.")
+    
+    def load_schema_from_file(self) -> List[bigquery.SchemaField]:
+        """Load schema from JSON file"""
+        try:
+            with open(self.schema_file, 'r') as f:
+                schema_config = json.load(f)
+            
+            schema = []
+            for field in schema_config:
+                schema.append(
+                    bigquery.SchemaField(
+                        name=field["name"],
+                        field_type=field["type"],
+                        mode=field["mode"],
+                        description=field.get("description", "")
+                    )
+                )
+            return schema
+        except Exception as e:
+            print(f"Error loading schema from file: {e}")
+            return self._get_default_schema()
+    
+    def _get_default_schema(self) -> List[bigquery.SchemaField]:
+        """Fallback default schema"""
+        return [
+            bigquery.SchemaField("segment_id", "STRING", mode="REQUIRED"),
+            bigquery.SchemaField("from_node", "STRING", mode="REQUIRED"),
+            bigquery.SchemaField("to_node", "STRING", mode="REQUIRED"),
+            bigquery.SchemaField("mode", "STRING", mode="REQUIRED"),
+            bigquery.SchemaField("time_min", "FLOAT", mode="REQUIRED"),
+            bigquery.SchemaField("neighborhood", "STRING", mode="REQUIRED"),
+            bigquery.SchemaField("population", "INTEGER", mode="REQUIRED"),
+            bigquery.SchemaField("median_income", "FLOAT", mode="REQUIRED"),
+            bigquery.SchemaField("created_at", "TIMESTAMP", mode="REQUIRED")
+        ]
     
     def create_dataset(self) -> bool:
         """Create the dataset if it doesn't exist"""
@@ -54,23 +91,8 @@ class BigQueryClient:
         try:
             table_id = f"{self.project_id}.{self.dataset_id}.segments"
             
-            schema = [
-                bigquery.SchemaField("segment_id", "STRING", mode="REQUIRED"),
-                bigquery.SchemaField("from_node", "STRING", mode="REQUIRED"),
-                bigquery.SchemaField("to_node", "STRING", mode="REQUIRED"),
-                bigquery.SchemaField("mode", "STRING", mode="REQUIRED"),
-                bigquery.SchemaField("time_min", "FLOAT", mode="REQUIRED"),
-                bigquery.SchemaField("neighborhood", "STRING", mode="REQUIRED"),
-                bigquery.SchemaField("population", "INTEGER", mode="REQUIRED"),
-                bigquery.SchemaField("median_income", "FLOAT", mode="REQUIRED"),
-                bigquery.SchemaField("accessibility_score", "FLOAT", mode="NULLABLE"),
-                bigquery.SchemaField("equity_score", "FLOAT", mode="NULLABLE"),
-                bigquery.SchemaField("efficiency_score", "FLOAT", mode="NULLABLE"),
-                bigquery.SchemaField("data_source", "STRING", mode="NULLABLE"),
-                bigquery.SchemaField("route_id", "STRING", mode="NULLABLE"),
-                bigquery.SchemaField("route_name", "STRING", mode="NULLABLE"),
-                bigquery.SchemaField("created_at", "TIMESTAMP", mode="REQUIRED")
-            ]
+            # Load schema from file
+            schema = self.load_schema_from_file()
             
             table = bigquery.Table(table_id, schema=schema)
             
@@ -85,6 +107,48 @@ class BigQueryClient:
             return True
         except Exception as e:
             print(f"Error creating table: {e}")
+            return False
+    
+    def create_od_matrices_table(self) -> bool:
+        """Create the OD matrices table"""
+        if not self.client:
+            print("BigQuery client not available - simulating OD matrices table creation")
+            return True
+        
+        try:
+            table_id = f"{self.project_id}.{self.dataset_id}.od_matrices"
+            
+            od_schema = [
+                bigquery.SchemaField("origin_id", "STRING", mode="REQUIRED", description="Origin location ID"),
+                bigquery.SchemaField("destination_id", "STRING", mode="REQUIRED", description="Destination location ID"),
+                bigquery.SchemaField("origin_neighborhood", "STRING", mode="REQUIRED", description="Origin neighborhood"),
+                bigquery.SchemaField("destination_neighborhood", "STRING", mode="REQUIRED", description="Destination neighborhood"),
+                bigquery.SchemaField("mode", "STRING", mode="REQUIRED", description="Transportation mode"),
+                bigquery.SchemaField("travel_time_min", "FLOAT", mode="REQUIRED", description="Travel time in minutes"),
+                bigquery.SchemaField("distance_m", "FLOAT", mode="NULLABLE", description="Distance in meters"),
+                bigquery.SchemaField("accessibility_score", "FLOAT", mode="NULLABLE", description="Accessibility score"),
+                bigquery.SchemaField("equity_score", "FLOAT", mode="NULLABLE", description="Equity score"),
+                bigquery.SchemaField("efficiency_score", "FLOAT", mode="NULLABLE", description="Efficiency score"),
+                bigquery.SchemaField("population_origin", "INTEGER", mode="NULLABLE", description="Origin population"),
+                bigquery.SchemaField("population_destination", "INTEGER", mode="NULLABLE", description="Destination population"),
+                bigquery.SchemaField("median_income_origin", "FLOAT", mode="NULLABLE", description="Origin median income"),
+                bigquery.SchemaField("median_income_destination", "FLOAT", mode="NULLABLE", description="Destination median income"),
+                bigquery.SchemaField("created_at", "TIMESTAMP", mode="REQUIRED", description="Record creation timestamp")
+            ]
+            
+            table = bigquery.Table(table_id, schema=od_schema)
+            
+            # Create table if it doesn't exist
+            try:
+                self.client.get_table(table_id)
+                print(f"OD matrices table {table_id} already exists")
+            except NotFound:
+                table = self.client.create_table(table)
+                print(f"Created OD matrices table {table_id}")
+            
+            return True
+        except Exception as e:
+            print(f"Error creating OD matrices table: {e}")
             return False
     
     def upload_dataframe(self, df: pd.DataFrame, table_name: str = "segments") -> bool:

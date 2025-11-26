@@ -11,8 +11,11 @@ services:
     volumes:
       - ./data:/app/data
       - ./cache:/app/cache
+      - ~/urban-mobility-key.json:/app/creds/key.json  # Mount the key file
     environment:
       - PYTHONUNBUFFERED=1
+      - GOOGLE_CLOUD_PROJECT=mystical-app-476502-m4
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/creds/key.json
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
@@ -20,12 +23,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-  # Optional: Add Prefect server if needed
-  # prefect:
-  #   image: prefecthq/prefect:latest
-  #   container_name: urban-mobility-prefect
-  #   ports:
-  #     - "4200:4200"
-  #   restart: unless-stopped
-  #   command: ["prefect", "server", "start", "--host", "0.0.0.0"]
