@@ -3,13 +3,13 @@ Simplified Urban Mobility ETL Pipeline
 Focuses on core functionality with sample data
 """
 
-from prefect import flow, task
+# from prefect import flow, task # Removed for Airflow
 import pandas as pd
 import numpy as np
 from datetime import datetime
 import os
 
-@task
+# @task # Removed
 def create_sample_osm_data() -> pd.DataFrame:
     """Create sample OSM street segments"""
     print("Creating sample OSM data...")
@@ -35,7 +35,7 @@ def create_sample_osm_data() -> pd.DataFrame:
     print(f"Created {len(df)} sample OSM segments")
     return df
 
-@task
+# @task # Removed
 def create_sample_transit_data() -> pd.DataFrame:
     """Create sample transit segments"""
     print("Creating sample transit data...")
@@ -57,7 +57,7 @@ def create_sample_transit_data() -> pd.DataFrame:
     print(f"Created {len(df)} sample transit segments")
     return df
 
-@task
+# @task # Removed
 def create_sample_demographics() -> pd.DataFrame:
     """Create sample demographic data"""
     print("Creating sample demographics...")
@@ -78,7 +78,7 @@ def create_sample_demographics() -> pd.DataFrame:
     print(f"Created demographics for {len(df)} segments")
     return df
 
-@task
+# @task # Removed
 def create_unified_dataset(osm_df: pd.DataFrame, 
                           transit_df: pd.DataFrame,
                           demo_df: pd.DataFrame) -> pd.DataFrame:
@@ -125,7 +125,7 @@ def create_unified_dataset(osm_df: pd.DataFrame,
     
     return all_segments
 
-@task
+# @task # Removed
 def export_results(unified_df: pd.DataFrame, 
                   output_dir: str = "data/output") -> dict:
     """Export results to various formats"""
@@ -164,7 +164,7 @@ def export_results(unified_df: pd.DataFrame,
         'summary': summary_path
     }
 
-@flow(name="simple_urban_mobility_pipeline")
+# @flow(name="simple_urban_mobility_pipeline") # Removed
 def simple_main_flow():
     """Simplified urban mobility ETL pipeline"""
     
@@ -193,5 +193,3 @@ if __name__ == "__main__":
     result_df, paths = simple_main_flow()
     
     print(f"\n🎉 Pipeline completed! Check the results in: {paths}")
-
-
