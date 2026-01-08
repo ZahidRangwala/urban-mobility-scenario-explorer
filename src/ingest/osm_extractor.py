@@ -113,7 +113,8 @@ class OSMExtractor:
         """Add segment metadata for analysis"""
         # Create segment IDs - handle MultiIndex properly
         if isinstance(edges.index, pd.MultiIndex):
-            edges['segment_id'] = [f"{u}_{v}" for u, v in edges.index]
+            # OSMnx returns (u, v, key) MultiIndex
+            edges['segment_id'] = [f"{u}_{v}" for u, v, k in edges.index]
         else:
             edges['segment_id'] = edges.index.astype(str)
         

@@ -83,66 +83,82 @@ class GTFSExtractor:
         transit_segments = []
         
         if self.trips is not None and self.stop_times is not None:
-            # Get trip information
-            trip_routes = self.trips[['trip_id', 'route_id']].copy()
-            
-            # Get stop sequences for each trip
-            stop_sequences = self.stop_times[['trip_id', 'stop_id', 'stop_sequence', 'arrival_time']].copy()
-            
-            # Merge with route info
-            trip_routes = trip_routes.merge(route_info, on='route_id', how='left')
-            
-            # Get stop sequences with route info
-            stop_sequences = stop_sequences.merge(trip_routes, on='trip_id', how='left')
-            stop_sequences = stop_sequences.merge(stop_info, on='stop_id', how='left')
-            
-            # Create segments between consecutive stops
-            for route_id in stop_sequences['route_id'].unique():
-                route_data = stop_sequences[stop_sequences['route_id'] == route_id]
+            # OPTIMIZATION: Filter to one "exemplar" weekday to prevent OOM
+            # Find the service_id with the most trips (usually the weekday schedule)
+            active_service_ids = self.trips['service_id'].value_counts()
+            if not active_service_ids.empty:
+                primary_service_id = active_service_ids.index[0]
+                print(f"Filtering GTFS data to primary service_id: {primary_service_id} ({active_service_ids.iloc[0]} trips)")
                 
-                for trip_id in route_data['trip_id'].unique():
-                    trip_data = route_data[route_data['trip_id'] == trip_id].sort_values('stop_sequence')
+                # Filter trips first
+                trips_subset = self.trips[self.trips['service_id'] == primary_service_id].copy()
+                
+                # Get trip information for subset
+                trip_routes = trips_subset[['trip_id', 'route_id']].copy()
+                
+                # Filter stop times to only include these trips
+                # This drastically reduces the size of the subsequent merge
+                valid_trip_ids = set(trips_subset['trip_id'])
+                stop_sequences = self.stop_times[self.stop_times['trip_id'].isin(valid_trip_ids)][['trip_id', 'stop_id', 'stop_sequence', 'arrival_time']].copy()
+                
+                print(f"Processing {len(stop_sequences)} stop times (reduced from {len(self.stop_times)})")
+                
+                # Merge with route info
+                trip_routes = trip_routes.merge(route_info, on='route_id', how='left')
+                
+                # Get stop sequences with route info
+                stop_sequences = stop_sequences.merge(trip_routes, on='trip_id', how='left')
+                stop_sequences = stop_sequences.merge(stop_info, on='stop_id', how='left')
+                
+                # Create segments between consecutive stops
+                for route_id in stop_sequences['route_id'].unique():
+                    route_data = stop_sequences[stop_sequences['route_id'] == route_id]
                     
-                    if len(trip_data) > 1:
-                        for i in range(len(trip_data) - 1):
-                            from_stop = trip_data.iloc[i]
-                            to_stop = trip_data.iloc[i + 1]
-                            
-                            # Calculate travel time
-                            time_min = self._calculate_transit_time(
-                                from_stop['arrival_time'], 
-                                to_stop['arrival_time']
-                            )
-                            
-                            # Calculate distance
-                            distance_m = self._calculate_distance(
-                                from_stop['stop_lat'], from_stop['stop_lon'],
-                                to_stop['stop_lat'], to_stop['stop_lon']
-                            )
-                            
-                            segment = {
-                                'segment_id': f"transit_{route_id}_{from_stop['stop_id']}_{to_stop['stop_id']}",
-                                'from_stop_id': from_stop['stop_id'],
-                                'to_stop_id': to_stop['stop_id'],
-                                'from_stop_name': from_stop['stop_name'],
-                                'to_stop_name': to_stop['stop_name'],
-                                'from_lat': from_stop['stop_lat'],
-                                'from_lon': from_stop['stop_lon'],
-                                'to_lat': to_stop['stop_lat'],
-                                'to_lon': to_stop['stop_lon'],
-                                'route_id': route_id,
-                                'route_name': from_stop['route_long_name'],
-                                'route_type': from_stop['route_type'],
-                                'mode': 'transit',
-                                'time_min': time_min,
-                                'distance_m': distance_m,
-                                'geometry': self._create_line_geometry(
+                    # Process only a subset of trips per route to further save memory if needed,
+                    # but filtering by service_ID should be enough for now.
+                    for trip_id in route_data['trip_id'].unique():
+                        trip_data = route_data[route_data['trip_id'] == trip_id].sort_values('stop_sequence')
+                        
+                        if len(trip_data) > 1:
+                            for i in range(len(trip_data) - 1):
+                                from_stop = trip_data.iloc[i]
+                                to_stop = trip_data.iloc[i + 1]
+                                
+                                # Calculate travel time
+                                time_min = self._calculate_transit_time(
+                                    from_stop['arrival_time'], 
+                                    to_stop['arrival_time']
+                                )
+                                
+                                # Calculate distance
+                                distance_m = self._calculate_distance(
                                     from_stop['stop_lat'], from_stop['stop_lon'],
                                     to_stop['stop_lat'], to_stop['stop_lon']
                                 )
-                            }
-                            
-                            transit_segments.append(segment)
+                                
+                                segment = {
+                                    'segment_id': f"transit_{route_id}_{from_stop['stop_id']}_{to_stop['stop_id']}",
+                                    'from_stop_id': from_stop['stop_id'],
+                                    'to_stop_id': to_stop['stop_id'],
+                                    'from_stop_name': from_stop['stop_name'],
+                                    'to_stop_name': to_stop['stop_name'],
+                                    'from_lat': from_stop['stop_lat'],
+                                    'from_lon': from_stop['stop_lon'],
+                                    'to_lat': to_stop['stop_lat'],
+                                    'to_lon': to_stop['stop_lon'],
+                                    'route_id': route_id,
+                                    'route_name': from_stop['route_long_name'],
+                                    'route_type': from_stop['route_type'],
+                                    'mode': 'transit',
+                                    'time_min': time_min,
+                                    'distance_m': distance_m,
+                                    'geometry': self._create_line_geometry(
+                                        from_stop['stop_lat'], from_stop['stop_lon'],
+                                        to_stop['stop_lat'], to_stop['stop_lon']
+                                    )
+                                }
+                                
+                                transit_segments.append(segment)
         
         return pd.DataFrame(transit_segments)
     

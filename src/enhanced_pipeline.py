@@ -3,7 +3,7 @@ Enhanced Urban Mobility ETL Pipeline
 Comprehensive data processing with OSM, GTFS, Census, and BigQuery integration
 """
 
-from prefect import flow, task
+# from prefect import flow, task # Removed for Airflow migration
 import pandas as pd
 import geopandas as gpd
 from typing import Dict, List, Tuple
@@ -18,7 +18,7 @@ from process.dask_processor import DaskProcessor
 from process.unified_dataset import UnifiedDatasetCreator
 from utils.bigquery_client import BigQueryClient
 
-@task
+# @task # Removed for Airflow migration
 def extract_osm_data(city_name: str) -> pd.DataFrame:
     """Extract OSM street network data with detailed segments"""
     print(f"Extracting OSM data for {city_name}...")
@@ -30,7 +30,7 @@ def extract_osm_data(city_name: str) -> pd.DataFrame:
     print(f"Extracted {len(segments)} OSM segments")
     return segments
 
-@task
+# @task # Removed
 def extract_gtfs_data(gtfs_url: str) -> pd.DataFrame:
     """Extract GTFS transit data"""
     print(f"Extracting GTFS data from {gtfs_url}...")
@@ -43,7 +43,7 @@ def extract_gtfs_data(gtfs_url: str) -> pd.DataFrame:
     print(f"Extracted {len(segments)} transit segments")
     return segments
 
-@task
+# @task # Removed
 def extract_census_data(state_fips: str = "17") -> pd.DataFrame:
     """Extract Census demographic data"""
     print("Extracting Census demographic data...")
@@ -54,7 +54,7 @@ def extract_census_data(state_fips: str = "17") -> pd.DataFrame:
     print(f"Extracted demographics for {len(demographics)} census tracts")
     return demographics
 
-@task
+# @task # Removed
 def process_with_dask(osm_segments: pd.DataFrame, 
                      transit_segments: pd.DataFrame,
                      demographics: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -81,7 +81,7 @@ def process_with_dask(osm_segments: pd.DataFrame,
     finally:
         processor.close_cluster()
 
-@task
+# @task # Removed
 def create_unified_dataset(osm_segments: pd.DataFrame,
                           transit_segments: pd.DataFrame, 
                           demographics: pd.DataFrame) -> pd.DataFrame:
@@ -101,7 +101,7 @@ def create_unified_dataset(osm_segments: pd.DataFrame,
     
     return unified_df
 
-@task
+# @task # Removed
 def store_in_bigquery(unified_df: pd.DataFrame, 
                      project_id: str = None) -> bool:
     """Store unified dataset in BigQuery"""
@@ -131,7 +131,7 @@ def store_in_bigquery(unified_df: pd.DataFrame,
     
     return success
 
-@task
+# @task # Removed
 def export_results(unified_df: pd.DataFrame, 
                   output_dir: str = "data/output") -> Dict[str, str]:
     """Export results to various formats"""
@@ -167,10 +167,10 @@ def export_results(unified_df: pd.DataFrame,
         'summary': summary_path
     }
 
-@flow(name="enhanced_urban_mobility_pipeline")
+# @flow(name="enhanced_urban_mobility_pipeline") # Removed
 def enhanced_main_flow(
     city: str = "Chicago, Illinois",
-    gtfs_url: str = "https://transitfeeds.com/p/chicago-transit-authority/165/latest/download",
+    gtfs_url: str = "https://www.transitchicago.com/downloads/sch_data/google_transit.zip",
     state_fips: str = "17",
     project_id: str = None,
     use_bigquery: bool = False
